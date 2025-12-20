@@ -17,6 +17,9 @@ Route::middleware(['throttle:api'])->group(function () {
     Route::get('/car-features/{feature}', [App\Http\Controllers\Api\CarFeatureController::class, 'show']);
     Route::get('/car-models', [App\Http\Controllers\Api\CarModelController::class, 'index']);
     Route::get('/car-models/{carModel}', [App\Http\Controllers\Api\CarModelController::class, 'show']);
+    Route::get('/cars', [App\Http\Controllers\Api\CarController::class, 'index']);
+    Route::get('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'show']);
+    Route::get('/car-photos/{carPhoto}', [App\Http\Controllers\Api\CarPhotoController::class, 'show']);
 });
 
 // Authenticated + Admin routes for write operations
@@ -44,4 +47,20 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::delete('/car-models/{carModel}', [App\Http\Controllers\Api\CarModelController::class, 'destroy']);
     Route::post('/car-models/{id}/restore', [App\Http\Controllers\Api\CarModelController::class, 'restore']);
     Route::delete('/car-models/{id}/force', [App\Http\Controllers\Api\CarModelController::class, 'forceDelete']);
+
+    Route::delete('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'destroy']);
+    Route::post('/cars/{id}/restore', [App\Http\Controllers\Api\CarController::class, 'restore']);
+    Route::delete('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'destroy']);
+    Route::post('/cars/{id}/restore', [App\Http\Controllers\Api\CarController::class, 'restore']);
+    Route::post('/cars/{id}/restore', [App\Http\Controllers\Api\CarController::class, 'restore']);
+    Route::delete('/cars/{id}/force', [App\Http\Controllers\Api\CarController::class, 'forceDelete']);
+    Route::post('/cars', [App\Http\Controllers\Api\CarController::class, 'store']);
+    Route::put('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'update']);
+
+    Route::post('/car-photos', [App\Http\Controllers\Api\CarPhotoController::class, 'store']);
+    Route::post('/car-photos/bulk', [App\Http\Controllers\Api\CarPhotoController::class, 'bulkStore']);
+    Route::put('/car-photos/{carPhoto}', [App\Http\Controllers\Api\CarPhotoController::class, 'update']);
+    Route::delete('/car-photos/{carPhoto}', [App\Http\Controllers\Api\CarPhotoController::class, 'destroy']);
+    Route::post('/car-photos/{id}/restore', [App\Http\Controllers\Api\CarPhotoController::class, 'restore']);
+    Route::delete('/car-photos/{id}/force', [App\Http\Controllers\Api\CarPhotoController::class, 'forceDelete']);
 });

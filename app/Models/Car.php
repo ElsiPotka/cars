@@ -7,6 +7,7 @@ use App\Enums\CarStatus;
 use App\Enums\CarTransmission;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Scout\Searchable;
 
 class Car extends BaseModel
@@ -61,6 +62,11 @@ class Car extends BaseModel
     public function features(): BelongsToMany
     {
         return $this->belongsToMany(CarFeature::class);
+    }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(CarPhoto::class);
     }
 
     /**
