@@ -16,13 +16,11 @@ beforeEach(function () {
     }
 });
 
-test('authenticated user can list categories', function () {
+test('public can list categories', function () {
     Category::factory()->create(['name' => 'SUV']);
     Category::factory()->create(['name' => 'Sedan']);
 
-    $user = User::factory()->create();
-
-    $response = $this->actingAs($user)->getJson('/api/categories');
+    $response = $this->getJson('/api/categories');
 
     $response->assertOk()
         ->assertJsonCount(2, 'data')
@@ -30,13 +28,11 @@ test('authenticated user can list categories', function () {
         ->assertJsonFragment(['name' => 'Sedan']);
 });
 
-test('user can search categories', function () {
+test('public can search categories', function () {
     Category::factory()->create(['name' => 'SUV']);
     Category::factory()->create(['name' => 'Sedan']);
 
-    $user = User::factory()->create();
-
-    $this->actingAs($user)->getJson('/api/categories?search=SUV')
+    $this->getJson('/api/categories?search=SUV')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonFragment(['name' => 'SUV']);

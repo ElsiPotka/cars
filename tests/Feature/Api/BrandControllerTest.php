@@ -15,13 +15,11 @@ beforeEach(function () {
     }
 });
 
-test('authenticated user can list brands', function () {
+test('public can list brands', function () {
     Brand::factory()->create(['name' => 'Audi', 'country' => 'Germany']);
     Brand::factory()->create(['name' => 'BMW', 'country' => 'Germany']);
 
-    $user = User::factory()->create();
-
-    $response = $this->actingAs($user)->getJson('/api/brands');
+    $response = $this->getJson('/api/brands');
 
     $response->assertOk()
         ->assertJsonCount(2, 'data')
@@ -29,20 +27,18 @@ test('authenticated user can list brands', function () {
         ->assertJsonFragment(['name' => 'BMW']);
 });
 
-test('user can search brands', function () {
+test('public can search brands', function () {
     Brand::factory()->create(['name' => 'Audi', 'country' => 'Germany']);
     Brand::factory()->create(['name' => 'Toyota', 'country' => 'Japan']);
 
-    $user = User::factory()->create();
-
     // Search by name
-    $this->actingAs($user)->getJson('/api/brands?search=Audi')
+    $this->getJson('/api/brands?search=Audi')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonFragment(['name' => 'Audi']);
 
     // Search by country
-    $this->actingAs($user)->getJson('/api/brands?search=Japan')
+    $this->getJson('/api/brands?search=Japan')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonFragment(['name' => 'Toyota']);
