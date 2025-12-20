@@ -48,14 +48,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::post('/car-models/{id}/restore', [App\Http\Controllers\Api\CarModelController::class, 'restore']);
     Route::delete('/car-models/{id}/force', [App\Http\Controllers\Api\CarModelController::class, 'forceDelete']);
 
-    Route::delete('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'destroy']);
-    Route::post('/cars/{id}/restore', [App\Http\Controllers\Api\CarController::class, 'restore']);
-    Route::delete('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'destroy']);
-    Route::post('/cars/{id}/restore', [App\Http\Controllers\Api\CarController::class, 'restore']);
-    Route::post('/cars/{id}/restore', [App\Http\Controllers\Api\CarController::class, 'restore']);
-    Route::delete('/cars/{id}/force', [App\Http\Controllers\Api\CarController::class, 'forceDelete']);
     Route::post('/cars', [App\Http\Controllers\Api\CarController::class, 'store']);
     Route::put('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'update']);
+    Route::delete('/cars/{car}', [App\Http\Controllers\Api\CarController::class, 'destroy']);
+    Route::post('/cars/{id}/restore', [App\Http\Controllers\Api\CarController::class, 'restore']);
+    Route::delete('/cars/{id}/force', [App\Http\Controllers\Api\CarController::class, 'forceDelete']);
+
 
     Route::post('/car-photos', [App\Http\Controllers\Api\CarPhotoController::class, 'store']);
     Route::post('/car-photos/bulk', [App\Http\Controllers\Api\CarPhotoController::class, 'bulkStore']);
