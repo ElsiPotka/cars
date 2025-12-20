@@ -3,8 +3,9 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class UpdateCategoryRequest extends FormRequest
+class UpdateCarFeatureRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,7 +23,12 @@ class UpdateCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['sometimes', 'required', 'string', 'max:255', 'unique:categories,name,'.$this->route('category')->id],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('car_features', 'name')->ignore($this->route('car_feature')?->id ?? $this->route('id')),
+            ],
             'description' => ['nullable', 'string'],
         ];
     }
@@ -35,9 +41,9 @@ class UpdateCategoryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'The category name is required.',
-            'name.unique' => 'This category name already exists.',
-            'name.max' => 'The category name cannot exceed 255 characters.',
+            'name.required' => 'The feature name is required.',
+            'name.unique' => 'This feature name already exists.',
+            'name.max' => 'The feature name cannot exceed 255 characters.',
         ];
     }
 }

@@ -29,4 +29,21 @@ class ProfileUpdateRequest extends FormRequest
             ],
         ];
     }
+
+    /**
+     * Get custom validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Your name is required.',
+            'name.max' => 'Your name cannot exceed 255 characters.',
+            'email.required' => 'Your email address is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.unique' => 'This email address is already in use.',
+            'email.max' => 'Your email address cannot exceed 255 characters.',
+        ];
+    }
 }
