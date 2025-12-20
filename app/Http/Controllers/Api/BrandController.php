@@ -41,12 +41,12 @@ class BrandController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreBrandRequest $request): BrandResource | JsonResponse
+    public function store(StoreBrandRequest $request): BrandResource|JsonResponse
     {
         try {
             return DB::transaction(function () use ($request) {
                 $data = $request->validated();
-                
+
                 if ($request->hasFile('logo')) {
                     $data['logo_path'] = $this->handleLogoUpload($request->file('logo'), $data['name']);
                 }
@@ -56,7 +56,8 @@ class BrandController extends Controller
                 return new BrandResource($brand);
             });
         } catch (\Throwable $e) {
-            Log::error('Error storing brand: ' . $e->getMessage());
+            Log::error('Error storing brand: '.$e->getMessage());
+
             return response()->json(['message' => 'Something went wrong, please try again later.'], 500);
         }
     }
@@ -72,12 +73,12 @@ class BrandController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateBrandRequest $request, Brand $brand): BrandResource | JsonResponse
+    public function update(UpdateBrandRequest $request, Brand $brand): BrandResource|JsonResponse
     {
         try {
             return DB::transaction(function () use ($request, $brand) {
                 $data = $request->validated();
-                
+
                 if ($request->hasFile('logo')) {
                     if ($brand->logo_path && Storage::disk('public')->exists($brand->logo_path)) {
                         Storage::disk('public')->delete($brand->logo_path);
@@ -90,7 +91,8 @@ class BrandController extends Controller
                 return new BrandResource($brand);
             });
         } catch (\Throwable $e) {
-            Log::error('Error updating brand: ' . $e->getMessage());
+            Log::error('Error updating brand: '.$e->getMessage());
+
             return response()->json(['message' => 'Something went wrong, please try again later.'], 500);
         }
     }
@@ -124,7 +126,7 @@ class BrandController extends Controller
         $brand = Brand::withTrashed()->findOrFail($id);
 
         if ($brand->logo_path && Storage::disk('public')->exists($brand->logo_path)) {
-             Storage::disk('public')->delete($brand->logo_path);
+            Storage::disk('public')->delete($brand->logo_path);
         }
 
         $brand->forceDelete();
@@ -137,9 +139,9 @@ class BrandController extends Controller
         $slug = \Illuminate\Support\Str::slug($brandName);
         $extension = $file->getClientOriginalExtension();
         $filename = "{$slug}.{$extension}";
-        
+
         $file->storeAs('brands', $filename, 'public');
-        
+
         return "brands/{$filename}";
     }
 }

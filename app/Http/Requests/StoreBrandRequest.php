@@ -25,7 +25,25 @@ class StoreBrandRequest extends FormRequest
             'name' => ['required', 'string', 'max:255', 'unique:brands,name'],
             'country' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
+            'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:5120'],
+        ];
+    }
+
+    /**
+     * Get custom validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'The brand name is required.',
+            'name.unique' => 'This brand name already exists.',
+            'name.max' => 'The brand name cannot exceed 255 characters.',
+            'country.max' => 'The country name cannot exceed 255 characters.',
+            'logo.image' => 'The logo must be an image file.',
+            'logo.mimes' => 'The logo must be a file of type: jpeg, png, jpg, gif, or svg.',
+            'logo.max' => 'The logo file size cannot exceed 5MB.',
         ];
     }
 }

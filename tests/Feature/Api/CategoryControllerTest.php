@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests\Feature\Api;
+
 use App\Models\Category;
 use App\Models\User;
 use Spatie\Permission\Models\Role;

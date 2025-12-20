@@ -129,7 +129,7 @@ test('admin can create brand with logo', function () {
     Storage::fake('public');
     $user = User::factory()->create();
     $user->assignRole('admin');
-    
+
     $file = \Illuminate\Http\UploadedFile::fake()->image('logo.jpg');
 
     $response = $this->actingAs($user)->postJson('/api/brands', [
@@ -139,7 +139,7 @@ test('admin can create brand with logo', function () {
     ]);
 
     $response->assertCreated();
-    
+
     $this->assertDatabaseHas('brands', [
         'name' => 'Brand With Logo',
         'logo_path' => 'brands/brand-with-logo.jpg',
@@ -152,14 +152,14 @@ test('updating brand with new logo deletes old logo', function () {
     Storage::fake('public');
     $user = User::factory()->create();
     $user->assignRole('admin');
-    
+
     // Create initial brand with logo
     $file = \Illuminate\Http\UploadedFile::fake()->image('old-logo.jpg');
     $this->actingAs($user)->postJson('/api/brands', [
         'name' => 'Brand Update Test',
         'logo' => $file,
     ]);
-    
+
     Storage::disk('public')->assertExists('brands/brand-update-test.jpg');
     // Ensure we have the brand ID
     $brand = Brand::where('name', 'Brand Update Test')->first();
@@ -167,11 +167,11 @@ test('updating brand with new logo deletes old logo', function () {
     // Update with new logo - use different extension to verify old one is gone
     $newFile = \Illuminate\Http\UploadedFile::fake()->image('new-logo.png');
     $this->actingAs($user)->putJson("/api/brands/{$brand->id}", [
-        'name' => 'Brand Update Test', 
+        'name' => 'Brand Update Test',
         'logo' => $newFile,
     ]);
 
-    Storage::disk('public')->assertMissing('brands/brand-update-test.jpg'); 
+    Storage::disk('public')->assertMissing('brands/brand-update-test.jpg');
     Storage::disk('public')->assertExists('brands/brand-update-test.png');
 });
 
@@ -179,7 +179,7 @@ test('updating brand and name deletes old logo file', function () {
     Storage::fake('public');
     $user = User::factory()->create();
     $user->assignRole('admin');
-    
+
     // Create initial
     $file = \Illuminate\Http\UploadedFile::fake()->image('old.png');
     $this->actingAs($user)->postJson('/api/brands', [
@@ -192,7 +192,7 @@ test('updating brand and name deletes old logo file', function () {
     // Update
     $newFile = \Illuminate\Http\UploadedFile::fake()->image('new.png');
     $this->actingAs($user)->putJson("/api/brands/{$brand->id}", [
-        'name' => 'New Brand Name', 
+        'name' => 'New Brand Name',
         'logo' => $newFile,
     ]);
 
@@ -200,18 +200,17 @@ test('updating brand and name deletes old logo file', function () {
     Storage::disk('public')->assertExists('brands/new-brand-name.png');
 });
 
-
 test('force deleting brand deletes logo', function () {
     Storage::fake('public');
     $user = User::factory()->create();
     $user->assignRole('admin');
-    
+
     $file = \Illuminate\Http\UploadedFile::fake()->image('delete-me.jpg');
     $this->actingAs($user)->postJson('/api/brands', [
         'name' => 'Delete Me',
         'logo' => $file,
     ]);
-    
+
     Storage::disk('public')->assertExists('brands/delete-me.jpg');
     $brand = Brand::where('name', 'Delete Me')->first();
     $brand->delete(); // Soft delete first

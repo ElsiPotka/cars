@@ -26,4 +26,18 @@ class StoreCategoryRequest extends FormRequest
             'description' => ['nullable', 'string'],
         ];
     }
+
+    /**
+     * Get custom validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'The category name is required.',
+            'name.unique' => 'This category name already exists.',
+            'name.max' => 'The category name cannot exceed 255 characters.',
+        ];
+    }
 }
