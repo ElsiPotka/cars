@@ -15,6 +15,7 @@ class Car extends BaseModel
     use Searchable;
 
     protected $fillable = [
+        'company_id',
         'car_model_id',
         'category_id',
         'name',
@@ -52,6 +53,11 @@ class Car extends BaseModel
     public function carModel(): BelongsTo
     {
         return $this->belongsTo(CarModel::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function category(): BelongsTo

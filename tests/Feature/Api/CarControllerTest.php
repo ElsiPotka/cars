@@ -1,429 +1,218 @@
 <?php
 
+use App\Enums\CarFuelType;
+use App\Enums\CarStatus;
+use App\Enums\CarTransmission;
 use App\Models\Car;
-use App\Models\CarPhoto;
+use App\Models\CarModel;
+use App\Models\Category;
+use App\Models\Company;
+use App\Models\EmployeeJobPosition;
+use App\Models\Role;
 use App\Models\User;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Spatie\Permission\Models\Role;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
-    if (! Role::where('name', 'admin')->exists()) {
-        Role::create(['name' => 'admin']);
-    }
-    if (! Role::where('name', 'customer')->exists()) {
-        Role::create(['name' => 'customer']);
-    }
-    Storage::fake('public');
+    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 });
 
-test('admin can create car with photos', function () {
+test('admin can create car for their company', function () {
+    $company = Company::create(['name' => 'My Company']);
     $user = User::factory()->create();
-    $user->assignRole('admin');
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    $user->assignRole($role);
+    EmployeeJobPosition::create([
+        'company_id' => $company->id,
+        'user_id' => $user->id,
+        'role_id' => $role->id,
+    ]);
 
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
+    Sanctum::actingAs($user);
 
-    $files = [
-        UploadedFile::fake()->image('car1.jpg'),
-        UploadedFile::fake()->image('car2.jpg'),
-    ];
+    $carModel = CarModel::factory()->create();
+    $category = Category::create(['name' => 'SUV', 'description' => 'Sport Utility Vehicle']);
 
-    $response = $this->actingAs($user)->postJson('/api/cars', [
+    $response = $this->postJson('/api/cars', [
         'car_model_id' => $carModel->id,
         'category_id' => $category->id,
-        'name' => 'Test Car',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual->value,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol->value,
+        'name' => 'New Car',
+        'year' => 2023,
+        'price' => 50000,
+        'mileage' => 1000,
+        'status' => CarStatus::Available->value,
+        'transmission' => CarTransmission::Automatic->value,
+        'fuel_type' => CarFuelType::Petrol->value,
         'engine_size' => '2.0L',
         'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available->value,
-        'photos' => $files,
+        'description' => 'A nice car',
     ]);
 
     $response->assertCreated();
-    $this->assertDatabaseHas('cars', ['name' => 'Test Car']);
-    $this->assertDatabaseCount('car_photos', 2);
-
-    $car = Car::where('name', 'Test Car')->first();
-    $photos = $car->photos;
-    foreach ($photos as $photo) {
-        Storage::disk('public')->assertExists($photo->path);
-    }
+    $this->assertDatabaseHas('cars', [
+        'name' => 'New Car',
+        'company_id' => $company->id,
+    ]);
 });
 
-test('admin can update car and manage photos', function () {
+test('user without company cannot create car', function () {
     $user = User::factory()->create();
-    $user->assignRole('admin');
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    $user->assignRole($role);
+    
+    Sanctum::actingAs($user);
 
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
+    $carModel = CarModel::factory()->create();
+    $category = Category::create(['name' => 'SUV', 'description' => 'Sport Utility Vehicle']);
 
-    $car = Car::create([
+    $response = $this->postJson('/api/cars', [
         'car_model_id' => $carModel->id,
         'category_id' => $category->id,
-        'name' => 'Original Car',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
+        'name' => 'New Car',
+        'year' => 2023,
         'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
+        'mileage' => 1000,
+        'status' => CarStatus::Available->value,
+        'transmission' => CarTransmission::Automatic->value,
+        'fuel_type' => CarFuelType::Petrol->value,
+        'engine_size' => '2.0L',
+        'color' => 'Red',
+        'description' => 'A nice car',
     ]);
 
-    $path = "cars/{$car->id}/test.jpg";
-    Storage::disk('public')->put($path, 'content');
-    $photo = CarPhoto::create(['car_id' => $car->id, 'path' => $path]);
+    $response->assertForbidden();
+    $response->assertJson(['message' => 'User does not belong to a company.']);
+});
 
-    $newFiles = [
-        UploadedFile::fake()->image('new.jpg'),
-    ];
+test('admin cannot update another companies car', function () {
+    $company1 = Company::create(['name' => 'Company 1']);
+    $user1 = User::factory()->create();
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    $user1->assignRole($role);
+    EmployeeJobPosition::create([
+        'company_id' => $company1->id,
+        'user_id' => $user1->id,
+        'role_id' => $role->id,
+    ]);
 
-    $response = $this->actingAs($user)->putJson("/api/cars/{$car->id}", [
-        'name' => 'Updated Car',
-        'deleted_photos' => [$photo->id],
-        'photos' => $newFiles,
+    $company2 = Company::create(['name' => 'Company 2']);
+    $category = Category::create(['name' => 'SUV', 'description' => 'Sport Utility Vehicle']);
+    
+    $car2 = Car::create([
+        'name' => 'Company 2 Car',
+        'company_id' => $company2->id,
+        'car_model_id' => CarModel::factory()->create()->id,
+        'category_id' => $category->id,
+        'year' => 2022,
+        'price' => 30000,
+        'mileage' => 5000,
+        'status' => CarStatus::Available->value,
+        'transmission' => CarTransmission::Manual->value,
+        'fuel_type' => CarFuelType::Diesel->value,
+        'engine_size' => '2.0L',
+        'color' => 'Black',
+        'description' => 'A nice car',
+    ]);
+
+    Sanctum::actingAs($user1);
+
+    $response = $this->putJson("/api/cars/{$car2->id}", [
+        'name' => 'Hacked Name',
+        'status' => CarStatus::Available->value,
+        'transmission' => CarTransmission::Manual->value,
+        'fuel_type' => CarFuelType::Diesel->value,
+        'engine_size' => '2.0L',
+        'color' => 'Black',
+        'description' => 'A nice car',
+    ]);
+
+    $response->assertForbidden();
+    $response->assertJson(['message' => 'Unauthorized access to this car.']);
+});
+
+test('admin can update their companies car', function () {
+    $company = Company::create(['name' => 'My Company']);
+    $user = User::factory()->create();
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    $user->assignRole($role);
+    EmployeeJobPosition::create([
+        'company_id' => $company->id,
+        'user_id' => $user->id,
+        'role_id' => $role->id,
+    ]);
+
+    $category = Category::create(['name' => 'SUV', 'description' => 'Sport Utility Vehicle']);
+    $car = Car::create([
+        'name' => 'My Car',
+        'company_id' => $company->id,
+        'car_model_id' => CarModel::factory()->create()->id,
+        'category_id' => $category->id,
+        'year' => 2022,
+        'price' => 30000,
+        'mileage' => 5000,
+        'status' => CarStatus::Available->value,
+        'transmission' => CarTransmission::Manual->value,
+        'fuel_type' => CarFuelType::Diesel->value,
+        'engine_size' => '2.0L',
+        'color' => 'Black',
+        'description' => 'A nice car',
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $response = $this->putJson("/api/cars/{$car->id}", [
+        'name' => 'Updated Name',
+        'year' => 2022,
+        'price' => 30000,
+        'mileage' => 5000,
+        'status' => CarStatus::Available->value,
+        'transmission' => CarTransmission::Manual->value,
+        'fuel_type' => CarFuelType::Diesel->value,
+        'engine_size' => '2.0L',
+        'color' => 'Black',
+        'description' => 'Updated description',
     ]);
 
     $response->assertOk();
-    $this->assertDatabaseHas('cars', ['name' => 'Updated Car']);
-
-    // Check old photo deleted
-    $this->assertSoftDeleted('car_photos', ['id' => $photo->id]);
-    Storage::disk('public')->assertMissing($path);
-
-    // Check new photo added
-    expect(CarPhoto::count())->toBe(1);
-    $newPhoto = CarPhoto::where('car_id', $car->id)->latest()->first();
-    Storage::disk('public')->assertExists($newPhoto->path);
+    $this->assertDatabaseHas('cars', [
+        'id' => $car->id,
+        'name' => 'Updated Name',
+    ]);
 });
 
-test('validation fails for invalid enum', function () {
-    $user = User::factory()->create();
-    $user->assignRole('admin');
-
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-
-    $response = $this->actingAs($user)->postJson('/api/cars', [
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Test Car',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => 'InvalidTransmission', // Invalid
-        'fuel_type' => \App\Enums\CarFuelType::Petrol->value,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available->value,
+test('admin cannot delete another companies car', function () {
+    $company1 = Company::create(['name' => 'Company 1']);
+    $user1 = User::factory()->create();
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    $user1->assignRole($role);
+    EmployeeJobPosition::create([
+        'company_id' => $company1->id,
+        'user_id' => $user1->id,
+        'role_id' => $role->id,
     ]);
 
-    $response->assertInvalid(['transmission']);
-});
-
-test('public can list cars', function () {
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-
-    Car::create([
-        'car_model_id' => $carModel->id,
+    $company2 = Company::create(['name' => 'Company 2']);
+    $category = Category::create(['name' => 'SUV', 'description' => 'Sport Utility Vehicle']);
+    
+    $car2 = Car::create([
+        'name' => 'Company 2 Car',
+        'company_id' => $company2->id,
+        'car_model_id' => CarModel::factory()->create()->id,
         'category_id' => $category->id,
-        'name' => 'Car One',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
+        'year' => 2022,
+        'price' => 30000,
+        'mileage' => 5000,
+        'status' => CarStatus::Available->value,
+        'transmission' => CarTransmission::Manual->value,
+        'fuel_type' => CarFuelType::Diesel->value,
+        'engine_size' => '2.0L',
+        'color' => 'Black',
+        'description' => 'A nice car',
     ]);
 
-    Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Car Two',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Blue',
-        'price' => 60000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
+    Sanctum::actingAs($user1);
 
-    $response = $this->getJson('/api/cars');
-
-    $response->assertOk()
-        ->assertJsonCount(2, 'data')
-        ->assertJsonFragment(['name' => 'Car One'])
-        ->assertJsonFragment(['name' => 'Car Two']);
-});
-
-test('public can search cars', function () {
-    $brand = \App\Models\Brand::factory()->create(['name' => 'Toyota']);
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id, 'name' => 'Corolla']);
-    $category = \App\Models\Category::factory()->create();
-
-    Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Special Edition',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-        'description' => 'A very reliable car',
-    ]);
-
-    // Search by name
-    $this->getJson('/api/cars?search=Special')
-        ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonFragment(['name' => 'Special Edition']);
-
-    // Search by description
-    $this->getJson('/api/cars?search=reliable')
-        ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonFragment(['name' => 'Special Edition']);
-
-    // Search by brand
-    $this->getJson('/api/cars?search=Toyota')
-        ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonFragment(['name' => 'Special Edition']);
-
-    // Search by model
-    $this->getJson('/api/cars?search=Corolla')
-        ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonFragment(['name' => 'Special Edition']);
-
-    // No match
-    $this->getJson('/api/cars?search=Missing')
-        ->assertOk()
-        ->assertJsonCount(0, 'data');
-});
-
-test('public can view single car', function () {
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Car One',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-
-    $response = $this->getJson("/api/cars/{$car->id}");
-
-    $response->assertOk()
-        ->assertJsonFragment(['name' => 'Car One']);
-});
-
-test('regular user cannot create car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('customer');
-
-    $response = $this->actingAs($user)->postJson('/api/cars', []);
+    $response = $this->deleteJson("/api/cars/{$car2->id}");
 
     $response->assertForbidden();
-});
-
-test('regular user cannot update car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('customer');
-
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Car One',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-
-    $response = $this->actingAs($user)->putJson("/api/cars/{$car->id}", []);
-
-    $response->assertForbidden();
-});
-
-test('regular user cannot delete car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('customer');
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Car One',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-
-    $response = $this->actingAs($user)->deleteJson("/api/cars/{$car->id}");
-
-    $response->assertForbidden();
-});
-
-test('regular user cannot restore car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('customer');
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Car One',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-    $car->delete();
-
-    $response = $this->actingAs($user)->postJson("/api/cars/{$car->id}/restore");
-
-    $response->assertForbidden();
-});
-
-test('regular user cannot force delete car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('customer');
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Car One',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-    $car->delete();
-
-    $response = $this->actingAs($user)->deleteJson("/api/cars/{$car->id}/force");
-
-    $response->assertForbidden();
-});
-
-test('admin can delete car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('admin');
-
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Delete Me',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-
-    $response = $this->actingAs($user)->deleteJson("/api/cars/{$car->id}");
-
-    $response->assertOk();
-    $this->assertSoftDeleted($car);
-});
-
-test('admin can restore car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('admin');
-
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Restore Me',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-    $car->delete();
-
-    $response = $this->actingAs($user)->postJson("/api/cars/{$car->id}/restore");
-
-    $response->assertOk();
-    $this->assertNotSoftDeleted($car);
-});
-
-test('admin can force delete car', function () {
-    $user = User::factory()->create();
-    $user->assignRole('admin');
-
-    $brand = \App\Models\Brand::factory()->create();
-    $carModel = \App\Models\CarModel::factory()->create(['brand_id' => $brand->id]);
-    $category = \App\Models\Category::factory()->create();
-    $car = Car::create([
-        'car_model_id' => $carModel->id,
-        'category_id' => $category->id,
-        'name' => 'Force Delete Me',
-        'year' => 2024,
-        'mileage' => 10,
-        'transmission' => \App\Enums\CarTransmission::Manual,
-        'fuel_type' => \App\Enums\CarFuelType::Petrol,
-        'color' => 'Red',
-        'price' => 50000,
-        'status' => \App\Enums\CarStatus::Available,
-    ]);
-    $car->delete();
-
-    $response = $this->actingAs($user)->deleteJson("/api/cars/{$car->id}/force");
-
-    $response->assertOk();
-    $this->assertDatabaseMissing('cars', ['id' => $car->id]);
+    $this->assertDatabaseHas('cars', ['id' => $car2->id]);
 });

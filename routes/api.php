@@ -62,3 +62,18 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::post('/car-photos/{id}/restore', [App\Http\Controllers\Api\CarPhotoController::class, 'restore']);
     Route::delete('/car-photos/{id}/force', [App\Http\Controllers\Api\CarPhotoController::class, 'forceDelete']);
 });
+
+// Authenticated + Admin or Manager routes
+Route::middleware(['auth:sanctum', 'role:admin|manager'])->group(function () {
+    Route::post('/companies', [App\Http\Controllers\Api\CompanyController::class, 'store']);
+    Route::get('/companies/{company}', [App\Http\Controllers\Api\CompanyController::class, 'show']);
+    Route::put('/companies/{company}', [App\Http\Controllers\Api\CompanyController::class, 'update']);
+    Route::delete('/companies/{company}', [App\Http\Controllers\Api\CompanyController::class, 'destroy']);
+    
+    Route::get('/companies/{company}/employees', [App\Http\Controllers\Api\CompanyController::class, 'getEmployees']);
+    Route::post('/companies/{company}/employees', [App\Http\Controllers\Api\CompanyController::class, 'addEmployee']);
+    Route::put('/companies/{company}/employees/{employee}', [App\Http\Controllers\Api\CompanyController::class, 'updateEmployee']);
+    Route::delete('/companies/{company}/employees/{employee}', [App\Http\Controllers\Api\CompanyController::class, 'removeEmployee']);
+    
+    Route::get('/companies/{company}/cars', [App\Http\Controllers\Api\CarController::class, 'companyIndex']);
+});

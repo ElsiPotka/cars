@@ -56,4 +56,19 @@ class User extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
         ];
     }
+    /**
+     * Get the employee job positions for the user.
+     */
+    public function employeeJobPositions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(EmployeeJobPosition::class);
+    }
+
+    /**
+     * Get the company associated with the user.
+     */
+    public function getCompanyAttribute()
+    {
+        return $this->employeeJobPositions()->with('company')->first()?->company;
+    }
 }
